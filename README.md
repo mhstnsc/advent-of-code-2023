@@ -1,3 +1,2 @@
-# advent-of-code-2022
 
-Jump to the code 
+Jump to the code: https://github.com/mhstnsc/advent-of-code-2022/tree/main/scala/src/main/scala
