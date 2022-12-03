@@ -1,9 +1,9 @@
 import common.MainBase
 import common.InputSyntax._
 
-private object Day1Problem1 extends ProblemBase(1)
+private object Day1Problem1 extends Day1ProblemBase(1)
 
-class ProblemBase(day: Int) extends MainBase(day) {
+class Day1ProblemBase(day: Int) extends MainBase(day) {
 
   override def run(inputFile: List[String]): String = {
     val result = inputFile
@@ -14,7 +14,7 @@ class ProblemBase(day: Int) extends MainBase(day) {
     result.toString
   }
 }
-object Day1Problem2 extends ProblemBase(1) {
+object Day1Problem2 extends Day1ProblemBase(1) {
 
   override def run(inputFile: List[String]): String = {
     val result = inputFile
