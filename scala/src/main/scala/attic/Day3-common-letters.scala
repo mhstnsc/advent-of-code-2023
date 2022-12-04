@@ -1,4 +1,6 @@
-import Day3.{letterToPrio, ProblemBase}
+package attic
+
+import attic.Day3.{ProblemBase, letterToPrio}
 import common.MainBase
 
 object Day3 {

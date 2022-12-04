@@ -1,5 +1,7 @@
-import common.MainBase
+package attic
+
 import common.InputSyntax._
+import common.MainBase
 
 private object Day1Problem1 extends Day1ProblemBase(1)
 

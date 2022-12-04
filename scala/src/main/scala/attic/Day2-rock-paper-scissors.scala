@@ -1,10 +1,10 @@
-import Day2.ProblemBase
+package attic
+
+import attic.Day2.ProblemBase
 import common.MainBase
 
 object Day2 {
   class ProblemBase extends MainBase(2) {
-
-    def impl(inputFile: List[String]) = ???
 
     def stringToValue(s: String) =
       s match {
