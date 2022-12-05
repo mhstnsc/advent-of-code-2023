@@ -1,4 +1,6 @@
-import Day5.ProblemBase
+package attic
+
+import attic.Day5.ProblemBase
 import common.InputSyntax.InputSyntax
 import common.MainBase
 
