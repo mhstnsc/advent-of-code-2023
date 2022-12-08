@@ -1,10 +1,11 @@
-import Day8.ProblemBase
+package attic
+
+import attic.Day8.ProblemBase
 import common.MainBase
 
 object Day8 {
   class ProblemBase extends MainBase(8) {
-    type Matrix = Vector[Vector[Int]]
-    def parse(inputLines: List[String]): Matrix =
+    def parse(inputLines: List[String]): Vector[Vector[Int]] =
       inputLines.map(s => s.map(_.toInt - '0').toVector).toVector
 
     override def run(inputFile: List[String]): String = {
