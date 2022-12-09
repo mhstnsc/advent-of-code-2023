@@ -1,26 +1,22 @@
 package common
-import scala.annotation.unused
 
 case class Point(l: Int, c: Int)
 
-class Matrix[T](val data: Vector[Vector[T]]) {
+case class Matrix[T](data: Vector[Vector[T]]) {
 
   def numLines() = data.size
   def numCols()  = Option.when(data.nonEmpty)(data(0).size).getOrElse(0)
 
-  def sliceLineTo(l: Int, c: Int): Vector[T]    = data(l).slice(0, c)
-  def sliceLineAfter(l: Int, c: Int): Vector[T] = data(l).slice(c + 1, numCols())
-  def sliceColBefore(l: Int, c: Int): Vector[T] = { for { i <- 0 until l } yield data(i)(c) }.toVector
-  def sliceColAfter(l: Int, c: Int): Vector[T]  = { for { i <- l + 1 until numLines } yield data(i)(c) }.toVector
+  def col(c: Int): Vector[T] = {
+    for { i <- 0 until numLines() } yield data(i)(c)
+  }.toVector
 
-  def sliceUntil(point1: Point, point2: Point): Matrix[T] = {
-    val minLine = point1.l min point2.l
-    val maxLine = point1.l max point2.l
-    val minCol  = point1.c min point1.c
-    val maxCol  = point1.c max point1.c
-
-    new Matrix((for { i <- minLine until maxLine } yield data(i).slice(minCol, maxCol)).toVector)
-  }
+  def slice(l: Int, c: Int, stepL: Int, stepC: Int): Vector[T] =
+    if (l < 0 || l >= numLines() || c < 0 || c >= numCols()) {
+      Vector.empty
+    } else {
+      slice(l + stepL, c + stepC, stepL, stepC).prepended(data(l)(c))
+    }
 
   def transpose(): Matrix[T] =
     new Matrix({
@@ -32,6 +28,21 @@ class Matrix[T](val data: Vector[Vector[T]]) {
         } yield data(l)(c)
       }.toVector
     }.toVector)
+
+  def rotateClockwise(degree: Int): Matrix[T] = {
+    def rotateOne(): Matrix[T] =
+      Matrix(
+        {
+          for { ci <- 0 until numCols() } yield data.map(v => v(ci)).reverse
+        }.toVector
+      )
+
+    if (degree == 0) {
+      this
+    } else {
+      rotateOne().rotateClockwise(degree - 1)
+    }
+  }
 
   def updated(l: Int, c: Int, value: T): Matrix[T] = new Matrix(data.updated(l, data(l).updated(c, value)))
   def updatedLine(l: Int, newLine: Vector[T]): Matrix[T] = {
