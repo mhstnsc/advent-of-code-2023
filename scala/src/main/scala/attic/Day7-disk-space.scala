@@ -1,4 +1,6 @@
-import Day7.ProblemBase
+package attic
+
+import attic.Day7.ProblemBase
 import common.MainBase
 
 object Day7 {
@@ -144,9 +146,9 @@ object Day7 {
   }
 }
 
-object Day6Problem1 extends ProblemBase
+object Day7Problem1 extends ProblemBase
 
-object Day6Problem2 extends ProblemBase {
+object Day7Problem2 extends ProblemBase {
 
   override def run(inputFile: List[String]): String = {
     val emptyRootDir = Dir("/", Nil)
