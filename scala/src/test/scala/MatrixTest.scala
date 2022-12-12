@@ -56,11 +56,39 @@ class MatrixTest extends AnyFunSuite with Matchers {
   }
 
   test("updatedCol") {
-    fixture.updatedCol(0, Vector(60, 70, 90)).col(0) shouldBe Vector(60, 70, 90)
+    fixture.updatedCol(0, Vector(60, 70, 90)).column(0) shouldBe Vector(60, 70, 90)
   }
 
-  test("slice") {
-    fixture.slice(2, 3, -1, -1) shouldBe Vector(12, 7, 2)
-    fixture.slice(1, 1, 1, 1) shouldBe Vector(6, 11)
+  test("slice1D") {
+    fixture.slice1D(2, 3, -1, -1) shouldBe Vector(12, 7, 2)
+    fixture.slice1D(1, 1, 1, 1) shouldBe Vector(6, 11)
+  }
+
+  test("mapLines") {
+    fixture.mapLines { (line, lineIdx) =>
+      line.map(v => v + lineIdx + 1)
+    } shouldBe Matrix(
+      Vector(
+        Vector(2, 3, 4, 5),
+        Vector(7, 8, 9, 10),
+        Vector(12, 13, 14, 15)
+      )
+    )
+  }
+
+  test("mapColumns") {
+    fixture.mapColumns { (line, lineIdx) =>
+      line.map(v => v + lineIdx + 1)
+    } shouldBe Matrix(
+      Vector(
+        Vector(2, 4, 6, 8),
+        Vector(6, 8, 10, 12),
+        Vector(10, 12, 14, 16)
+      )
+    )
+  }
+
+  test("print") {
+    println(fixture.mkString(" "))
   }
 }
