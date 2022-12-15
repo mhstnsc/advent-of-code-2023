@@ -142,16 +142,16 @@ case class Matrix[T](data: Vector[Vector[T]]) {
       moreColumns.prepended(newLine).appended(newLine)
     })
 
-  def mkString(sep: String): String = {
+  def mkString(sep: String, renderer: (T, Point) => String = (v, _) => v.toString): String = {
     //find column widths
     val colWidths = transpose().data.map {
       col => col.map(v => v.toString.length).maxOption.getOrElse(0)
     }
-    data.map { line =>
+    data.zipWithIndex.map { case (line, lineIdx) =>
       line.zipWithIndex.map{ case (v, colIdx) => {
         val colWidth = colWidths(colIdx)
         val prefixSize = colWidth - v.toString.length
-        " " * prefixSize + v.toString
+        " " * prefixSize + renderer(v, Point(lineIdx, colIdx))
       }}.mkString(sep)
     }.mkString("\n")
   }
@@ -164,5 +164,11 @@ object Matrix {
   implicit class IndexingOps[T](matrix: Matrix[T]) {
     def apply(l: Int, c: Int): T = matrix.data(l)(c)
     def apply(l: Int): Vector[T] = matrix.data(l)
+  }
+
+  def filled[T](numLines: Int, numCols: Int, default: T): Matrix[T] = {
+    new Matrix(
+      Vector.fill(numLines)(Vector.fill(numCols)(default))
+    )
   }
 }
