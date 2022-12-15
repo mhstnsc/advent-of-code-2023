@@ -1,7 +1,8 @@
 package attic
 
 import attic.Day8.ProblemBase
-import common.MainBase
+import common.Terminal.{ANSI_RED, ANSI_WHITE}
+import common.{MainBase, Matrix, Point}
 
 object Day8 {
   class ProblemBase extends MainBase(8) {
@@ -71,9 +72,12 @@ object Day8Problem2 extends ProblemBase {
     val scores = for {
       l <- 1 until matrix.size - 1
       c <- 1 until matrix(0).size - 1
-    } yield score(l, c)
+    } yield (score(l, c), Point(l,c))
 
-    scores.max.toString
+    val bestView = scores.maxBy(_._1)
+    println(Matrix(matrix).mkString("", (v, p) => if(p == bestView._2) s"${ANSI_RED}$v" else s"${ANSI_WHITE}$v"))
+
+    scores.map(_._1).max.toString
   }
 
 }
