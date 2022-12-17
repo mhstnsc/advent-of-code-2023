@@ -312,9 +312,120 @@ object Day16 {
 
       maxReward3(graph, maxTime, acc ++ newAcc, timeBudget + 1)
     }
+
+  def maxReward4(graph: Graph, maxTime: Int, acc: Map[AccKey, AccValue], timeBudget: Int): Map[AccKey, AccValue] =
+    if (timeBudget == maxTime + 1) {
+      acc
+    } else {
+      val newAcc = {
+        val nodes = for {
+          i <- graph.valves.keys.toList.sorted
+          j <- graph.valves.keys.toList.sorted
+        } yield (i, j)
+
+        val debugTime = 8
+        val debugiValve = "AA"
+        val debugjValve = "JJ"
+
+        nodes.map { case (iValve, jValve) =>
+          val costs = graph.transportCosts(iValve)
+
+          val intermediatePath =
+            for {
+              kValve <- graph.valves.keys.toList.sorted
+              if kValve != jValve
+              iToK <- costs.get(kValve)
+              if iToK < timeBudget
+              kToJ <- acc.get(AccKey(kValve, jValve, timeBudget - iToK))
+              if !kToJ.intermediateValves.contains(kValve)
+            } yield {
+              val newReward = graph.valves(kValve) * (timeBudget - iToK) + kToJ.reward
+              val newIncrement =  kToJ.increment + graph.valves(kValve)
+              val r = AccValue(
+                newReward,
+                newIncrement,
+                kToJ.intermediateValves + kValve,
+                kToJ.chainOfValves.prepended(kValve)
+              )
+              if(timeBudget == debugTime && iValve==debugiValve && jValve==debugjValve) {
+                //                if(kValve=="BB" && iToK._1.time == 5)
+                println(s"mihai-direct $timeBudget,$iValve,$jValve,$kValve[${iToK}] -> (${newReward}, ${newIncrement})")
+              }
+              r
+            }
+
+          val timebackIntermediatePaths = {
+            val previousPaths =
+              for {
+                kValve <- graph.valves.keys.toList.sorted
+                if kValve != jValve
+                backInTime <- 1 until timeBudget
+                accKey = AccKey(iValve, kValve, backInTime)
+                if acc.contains(accKey)
+              } yield accKey -> acc(accKey)
+
+            val combined = for {
+              iToK <- previousPaths
+              kValve = iToK._1.endValve
+              kToJ <- acc.get(AccKey(kValve, jValve, timeBudget - iToK._1.time))
+              if iToK._2.intermediateValves.intersect(kToJ.intermediateValves).isEmpty
+            } yield {
+              val newReward = iToK._2.reward + iToK._2.increment * (timeBudget - iToK._1.time) + kToJ.reward
+              val newIncrement = iToK._2.increment + kToJ.increment
+              val r = AccValue(
+                newReward,
+                newIncrement,
+                iToK._2.intermediateValves ++ kToJ.intermediateValves,
+                iToK._2.chainOfValves ++ kToJ.chainOfValves
+              )
+              if(timeBudget == debugTime && iValve==debugiValve && jValve==debugjValve) {
+                //                if(kValve=="BB" && iToK._1.time == 5)
+                println(s"mihai $timeBudget,$iValve,$jValve,$kValve[${iToK._1.time}] -> (${newReward}, ${newIncrement})")
+              }
+              r
+            }
+            combined
+          }
+
+          val directPath = {
+            {
+              for {
+                oldPath <- acc.get(AccKey(iValve, jValve, timeBudget - 1))
+              } yield {
+                val newPath = oldPath.copy(reward = oldPath.reward + oldPath.increment)
+                if(timeBudget == debugTime && iValve==debugiValve && jValve==debugjValve) {
+                  //                if(kValve=="BB" && iToK._1.time == 5)
+                  println(s"mihai-self $timeBudget,$iValve,$jValve[${oldPath.reward}] -> (${oldPath.reward + oldPath.increment}, ${oldPath.increment})")
+                }
+                newPath
+              }
+            }.orElse(
+              // we spawn a new path if the budget allows
+              costs
+                .get(jValve)
+                .filter(v => v <= timeBudget)
+                .map(_ => AccValue(0, graph.valves(jValve), Set(jValve), Vector(jValve)))
+            )
+          }
+
+
+          val bestPath = Array(intermediatePath, directPath, timebackIntermediatePaths).flatten.maxByOption(accValue =>
+            accValue.reward * accValue.increment
+          )
+          val r = bestPath.map(v => AccKey(iValve, jValve, timeBudget) -> v)
+          r
+        }
+      }.flatten.toMap
+
+      val resultAcc = acc ++ newAcc
+      //      print(timeBudget, graph, resultAcc)
+
+      maxReward3(graph, maxTime, acc ++ newAcc, timeBudget + 1)
+    }
+
 }
 
-object Day16_Problem1 extends MainBaseBig(day) {
+object Day16_Problem1_DP extends MainBaseBig(day) {
   override def run(inputFile: List[String]): String = {
     val graph = {
       val graph = parse(inputFile)
@@ -377,16 +488,3 @@ object Day16_Problem1_Big extends MainBaseBig(day) {
   }
 }
 
-object Day16_Problem2_Small extends MainBaseSmall(day) {
-  override def run(inputFile: List[String]): String = {
-    val input = parse(inputFile)
-    ""
-  }
-}
-
-object Day16_Problem2_Big extends MainBaseBig(day) {
-  override def run(inputFile: List[String]): String = {
-    val input = parse(inputFile)
-    ""
-  }
-}
