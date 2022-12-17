@@ -142,7 +142,7 @@ case class Matrix[T](data: Vector[Vector[T]]) {
       moreColumns.prepended(newLine).appended(newLine)
     })
 
-  def mkString(sep: String, renderer: (T, Point) => String = (v, _) => v.toString): String = {
+  def mkString(sep: String, renderer: (T, Point) => String = (v, _) => v.toString, alignColumns:Boolean = true): String = {
     //find column widths
     val colWidths = transpose().data.map {
       col => col.map(v => v.toString.length).maxOption.getOrElse(0)
@@ -150,7 +150,7 @@ case class Matrix[T](data: Vector[Vector[T]]) {
     data.zipWithIndex.map { case (line, lineIdx) =>
       line.zipWithIndex.map{ case (v, colIdx) => {
         val colWidth = colWidths(colIdx)
-        val prefixSize = colWidth - v.toString.length
+        val prefixSize = if(alignColumns) colWidth - v.toString.length else 0
         " " * prefixSize + renderer(v, Point(lineIdx, colIdx))
       }}.mkString(sep)
     }.mkString("\n")

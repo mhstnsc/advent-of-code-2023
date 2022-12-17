@@ -115,22 +115,15 @@ object Day15Problem2Small extends MainBaseSmall(15) {
 
     val m = pairs.map { case (sensor, beacon) =>
       surface(sensor, beacon).filter(isInsideRegion(20))
-    }.zipWithIndex.foldLeft(Matrix.filled(21, 21, s"${Terminal.ANSI_WHITE}-${Terminal.ANSI_RESET}")) {
-      case (acc, (v, i)) =>
+    }.zipWithIndex.foldLeft(Matrix.filled(21, 21, -1)) {
+      case (acc, (v, _)) =>
         val seed = Random.nextInt(Int.MaxValue)
-        v.foldLeft(acc){ case (acc, point: Point) => {
-        acc.updated(point.l, point.c, s"${Terminal.getRandom256Color(seed)}o${Terminal.ANSI_RESET}")
-      }
-      }
+        v.foldLeft(acc){ case (acc, point: Point) => acc.updated(point.l, point.c, seed)}
     }
 
-
-    println(Matrix.filled(21, 21, "X").mkString(""))
-
-
-
-    println(m.mkString(""))
-
+    val rendered = m.mkString("", renderer = (v, _)=> if(v == -1) s"-" else s"${Terminal.getRandom256Color(v)}o${Terminal.ANSI_RESET}", alignColumns = false)
+    FileUtils.writeFile("result.txt", rendered)
+    println(rendered)
 
     computeForMatrix(20, pairs).toString
   }
