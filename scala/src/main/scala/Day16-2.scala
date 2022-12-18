@@ -13,7 +13,7 @@ object Day16_2 {
       valves: Map[String, Int],
       transportCosts: Map[String, Map[String, Int]] // for each node we have a map to a destination node with a cost
   ) {
-    val producingValves: Array[String] = valves.keys.filter(k => valves(k) > 0).toVector.prepended("AA").sorted.toArray
+    val producingValves: Seq[String] = valves.keys.filter(k => valves(k) > 0).toSeq.prepended("AA").sorted
   }
 
   def parse(input: List[String]): Graph =
@@ -121,7 +121,7 @@ object Day16_2 {
     }.maxOption
     println(s"Time budget: ${timeIndex} maxIncrement: ${maxIncrement}")
 
-    if(enablePrint) {
+    if (enablePrint) {
       for {
         iE    <- graph.producingValves
         jE    <- graph.producingValves
@@ -129,7 +129,8 @@ object Day16_2 {
         jH    <- graph.producingValves
         value <- acc.get(AccKey(iE, jE, iH, jH, timeIndex))
         if iE == "AA" && iH == "AA"
-      } println(s"$timeIndex:$iE,$jE,$iH,$jH -> ${value.reward} +${value.increment} [${value.chainElephant.mkString(",")}] [${value.chainHuman.mkString(",")}]")
+      } println(s"$timeIndex:$iE,$jE,$iH,$jH -> ${value.reward} +${value.increment} [${value.chainElephant
+          .mkString(",")}] [${value.chainHuman.mkString(",")}]")
     }
 
     println("")
@@ -147,17 +148,17 @@ object Day16_2 {
           jH <- graph.producingValves
         } yield (iE, jE, iH, jH)
 
-        val debugTime   = 8
-        val debugIE = "AA"
-        val debugJE = "DD"
-        val debugIH = "AA "
-        val debugJH = "CC"
+        val debugTime = 8
+        val debugIE   = "AA"
+        val debugJE   = "DD"
+        val debugIH   = "AA "
+        val debugJH   = "CC"
 
-        nodes.map { case (iE, jE, iH, jH) =>
+        nodes.par.map { case (iE, jE, iH, jH) =>
           val costsE = graph.transportCosts(iE)
           val costsH = graph.transportCosts(iH)
 
-          val intermediatePath =
+          val intermediatePath = {
             for {
               kE <- graph.producingValves
               if kE != jE
@@ -185,19 +186,22 @@ object Day16_2 {
               )
 //              if (timeBudget == debugTime && iValve == debugiValve && jValve == debugjValve) {
 //                //                if(kValve=="BB" && iToK._1.time == 5)
-//                println(s"mihai-direct $timeBudget,$iValve,$jValve,$kValve[${iToK}] -> (${newReward}, ${newIncrement})")
+//                println(s"mihai-direct $timeBudget,$iValve,$jValve,$kValve[${iToK}] -> (${newReward},
+              //                ${newIncrement})")
 //              }
               r
             }
+            Seq.empty[AccValue]
+          }
 
           val timebackIntermediatePaths = {
             val previousPaths =
               for {
-                kE <- graph.producingValves.par
+                kE <- graph.producingValves
                 if kE != jE
                 kH <- graph.producingValves
                 if kH != jH
-                backInTime <- math.max(0, timeBudget-15) until timeBudget
+                backInTime <- 1 until timeBudget
                 accKey = AccKey(iE, kE, iH, kH, backInTime)
                 if acc.contains(accKey)
               } yield accKey -> acc(accKey)
@@ -256,8 +260,8 @@ object Day16_2 {
               if jE != jH
               if math.max(costE, costH) <= timeBudget
             } yield {
-              val rewardE = graph.valves(jE) * (timeBudget - costE)
-              val rewardH = graph.valves(jH) * (timeBudget - costH)
+              val rewardE      = graph.valves(jE) * (timeBudget - costE)
+              val rewardH      = graph.valves(jH) * (timeBudget - costH)
               val newIncrement = graph.valves(jE) + graph.valves(jH)
               AccValue(
                 rewardE + rewardH,
@@ -271,8 +275,8 @@ object Day16_2 {
           )
 
           val bestPath =
-            Array(intermediatePath, ParArray(directPath).flatten, timebackIntermediatePaths).flatten.maxByOption(
-              accValue => accValue.reward * accValue.increment
+            Array(intermediatePath, Seq(directPath).flatten, timebackIntermediatePaths).flatten.maxByOption(accValue =>
+              accValue.reward + accValue.increment * (maxTime - timeBudget)
             )
           val r = bestPath.map(v => AccKey(iE, jE, iH, jH, timeBudget) -> v)
           r
@@ -286,7 +290,7 @@ object Day16_2 {
     }
 }
 
-object Day16_Problem2_DP extends MainBaseBig(day) {
+object Day16_Problem2_DP extends MainBaseSmall(day) {
   override def run(inputFile: List[String]): String = {
     val graph = {
       val graph = parse(inputFile)
@@ -337,6 +341,9 @@ object Day16_Problem2_DP extends MainBaseBig(day) {
         reward <- allRewards.get(AccKey(s, e, s, h, maxTime))
       } yield reward
     }.maxBy(v => v.reward)
+
+    println(lastTimes.chainElephant)
+    println(lastTimes.chainHuman)
 
     lastTimes.reward.toString
   }
