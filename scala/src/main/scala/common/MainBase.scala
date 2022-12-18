@@ -74,7 +74,7 @@ abstract class MainBaseBig(day: Int) {
     val startTime = Instant.now()
     val v         = run(inputFile)
     val endTime   = Instant.now()
-    println(s"${getClass.getSimpleName} big   result [${Duration.between(endTime, startTime).toSeconds}] = ${v}")
+    println(s"${getClass.getSimpleName} big   result [${Duration.between(startTime, endTime).toSeconds}s] = ${v}")
   }
 
   def run(inputFile: List[String]): String
