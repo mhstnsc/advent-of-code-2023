@@ -46,11 +46,12 @@ abstract class MainBaseTest(day: Int) {
       }
 
   def run(inputFile: List[String]): String
+  def debugln(x: Any) = println(x)
 }
 
 abstract class MainBaseSmall(day: Int) {
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     Try(Source.fromResource(s"day-$day-small.txt").getLines().toList).toOption
       .orElse(
         Try(Source.fromResource(s"attic/day-$day-small.txt").getLines().toList).toOption
@@ -58,9 +59,10 @@ abstract class MainBaseSmall(day: Int) {
       .foreach { smallInput =>
         println(s"${getClass.getSimpleName} small result = ${run(smallInput)}")
       }
-  }
 
   def run(inputFile: List[String]): String
+
+  def debugln(x: Any) = println(x)
 }
 
 abstract class MainBaseBig(day: Int) {
@@ -78,4 +80,6 @@ abstract class MainBaseBig(day: Int) {
   }
 
   def run(inputFile: List[String]): String
+
+  def debugln(x: Any) = {}
 }
