@@ -1,9 +1,9 @@
 package attic
 
-
 import common._
 
 import scala.annotation.tailrec
+import scala.collection.immutable.Set
 
 object Day24_v2_Problem1 extends MainBaseBig(24) {
 
@@ -50,6 +50,63 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
       }
   }
 
+  override def run(inputFile: List[String]): String = {
+    val map = parse(inputFile)
+    val winds = map
+      .values()
+      .map { case (c, point) =>
+        c match {
+          case '#' => None
+          case '.' => None
+          case '>' => Some(point -> Point(0, 1))
+          case 'v' => Some(point -> Point(1, 0))
+          case '<' => Some(point -> Point(0, -1))
+          case '^' => Some(point -> Point(-1, 0))
+        }
+      }
+      .flatten
+
+    val windState = WindState(
+      map,
+      winds
+    )
+
+    val destination = Point(map.numLines() - 1, map.numCols() - 2)
+    val start       = Point(0, 1)
+
+    println(map.values().count { case (c, p) => c == '.' })
+
+    val initialExplorationQueue = Vector(ExploreCandidate(GraphNode(start, 0), GraphNode(start, 0)))
+
+    // perform initial render so we can move cursor back
+    render(windState, Vector.empty, Vector.empty, 0)
+
+    def buildPath(history: Map[GraphNode, HistoryItem], start: GraphNode, end: GraphNode): Vector[GraphNode] =
+      if (start == end) {
+        Vector(start)
+      } else {
+        buildPath(history, start, history(end).parent).appended(end)
+      }
+
+    // solve first to find the solution
+    val result = {
+      val renderer = (_: WindState, _: Vector[ExploreCandidate], _: Int) => ()
+      bfs(windState, 0, initialExplorationQueue, Set.empty, destination, Map.empty, renderer)
+    }
+    val endGraphNode = result.keySet.find(n => n.p == destination).get
+    val solutionPath = buildPath(result, GraphNode(start, 0), endGraphNode)
+
+    // solve again and render the solution as well
+    val renderer = (windState: WindState, explorationQueue: Vector[ExploreCandidate], t: Int) => {
+      Thread.sleep(30)
+      println(s"${Terminal.moveCursorToPosition(7, 1)}")
+      render(windState, explorationQueue, solutionPath, t)
+    }
+    bfs(windState, 0, initialExplorationQueue, Set.empty, destination, Map.empty, renderer)
+
+    solutionPath.size.toString
+  }
+
   def findFreeSpotsAround(newMap: Matrix[Char], pos: Point): Seq[Point] = {
     val increments = List(
       Point(1, 0),
@@ -68,36 +125,89 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
   case class HistoryItem(parent: GraphNode)
   case class ExploreCandidate(candidate: GraphNode, parent: GraphNode)
 
+  def render(
+      windState: WindState,
+      explorationQueue: Vector[ExploreCandidate],
+      solutionPath: Vector[GraphNode],
+      t: Int
+  ): Unit = {
+    val updatedMap = explorationQueue.map(_.candidate.p).toSet.foldLeft(windState.map) { case (acc, p) =>
+      acc.updated(p, 'o')
+    }
+
+    // add the solution to the map
+    val withSolution = solutionPath.filter(c => c.time <= t).foldLeft(updatedMap) { case (map, node) =>
+      map.updated(node.p, 'S')
+    }
+
+    val renderer = (v: Char, _: Point) =>
+      v match {
+        case '.' => s"${Terminal.ANSI_BLUE}$v${Terminal.ANSI_RESET}"
+        case 'o' => s"${Terminal.ANSI_RED}$v${Terminal.ANSI_RESET}"
+        case '#' => s"${Terminal.ANSI_WHITE}$v${Terminal.ANSI_RESET}"
+        case 'S' => s"${Terminal.ANSI_YELLOW}o${Terminal.ANSI_RESET}"
+        case _   => s"${Terminal.ANSI_BLUE}$v${Terminal.ANSI_RESET}"
+      }
+
+    println(withSolution.mkString("", renderer, alignColumns = false))
+  }
+
   @tailrec
   def bfs(
-      graph: Map[GraphNode, Seq[GraphNode]],
+      windState: WindState,
+      t: Int,
       explorationQueue: Vector[ExploreCandidate],
       explorationSet: Set[GraphNode],
       end: Point,
-      history: Map[GraphNode, HistoryItem]
-  ): Map[GraphNode, HistoryItem] =
+      history: Map[GraphNode, HistoryItem],
+      renderer: (WindState, Vector[ExploreCandidate], Int) => Unit
+  ): Map[GraphNode, HistoryItem] = {
+    renderer(windState, explorationQueue, t)
+
     if (explorationQueue.isEmpty) {
       history
     } else {
-      val ExploreCandidate(current, parent) = explorationQueue.head
-      val updatedHistory                    = history.updated(current, HistoryItem(parent))
+      val nextWindState = windState.moveWinds()
+      val graph         = genAllPossibleMoves(windState, t)
 
-      if (current.p == end) {
-        updatedHistory
-      } else {
+      val expanded = explorationQueue.map { case ExploreCandidate(current, _) =>
         val children = graph.getOrElse(current, Seq.empty)
-
         val newNodes = children
-          .filter(v => !updatedHistory.contains(v))
-          .filter(p => !explorationSet.contains(p))
           .map(v => ExploreCandidate(v, current))
 
-        val updatedExplorationQueue = (explorationQueue ++ newNodes.toVector).drop(1)
-        val updatedExplorationSet   = explorationSet ++ newNodes.map(_.candidate)
+        newNodes
+      }.flatten.distinct
 
-        bfs(graph, updatedExplorationQueue, updatedExplorationSet, end, updatedHistory)
+      val updatedHistory = expanded.foldLeft(history) { case (acc, e) =>
+        acc.updated(e.candidate, HistoryItem(e.parent))
+      }
+
+      if (expanded.exists(v => v.candidate.p == end)) {
+        updatedHistory
+      } else {
+        val updatedExplorationQueue = expanded
+        val updatedExplorationSet   = explorationSet ++ expanded.map(_.candidate)
+        bfs(nextWindState, t + 1, updatedExplorationQueue, updatedExplorationSet, end, updatedHistory, renderer)
       }
     }
+  }
+
+  def genAllPossibleMoves(windState: WindState, t: Int): Map[GraphNode, Seq[GraphNode]] = {
+    val nextWindState = windState.moveWinds()
+
+    val m1      = windState.map
+    val t1      = t
+    val m2      = nextWindState.map
+    val t2      = t + 1
+    val m1Nodes = m1.values().map { case (c, p) => if (c == '.') Some(p) else None }.flatten.toSet
+    val m2Nodes =
+      m1Nodes.map(p => p -> findFreeSpotsAround(m2, p)).toMap
+
+    val graph = m2Nodes.map { case (p, children) =>
+      GraphNode(p, t1) -> children.map(p => GraphNode(p, t2))
+    }
+    graph
+  }
 
   def buildGraph(map: Matrix[Char]): Map[GraphNode, Seq[GraphNode]] = {
     val winds = map
@@ -113,7 +223,7 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
         }
       }
       .flatten
-    val allMaps = (1 to (map.numCols()-2) * (map.numLines()-2) * 2).foldLeft((Vector(map), WindState(map, winds))) {
+    val allMaps = (1 to (map.numCols() - 2) * (map.numLines() - 2) * 2).foldLeft((Vector(map), WindState(map, winds))) {
       case ((maps, windstate), _) =>
         val nextWindState = windstate.moveWinds()
         (maps.appended(nextWindState.map), nextWindState)
@@ -126,7 +236,7 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
       val t2      = children(1)._2
       val m1Nodes = m1.values().map { case (c, p) => if (c == '.') Some(p) else None }.flatten.toSet
       val m2Nodes =
-        m1Nodes.map { p => p -> findFreeSpotsAround(m2, p) }.toMap
+        m1Nodes.map(p => p -> findFreeSpotsAround(m2, p)).toMap
 
       val graph = m2Nodes.map { case (p, children) =>
         GraphNode(p, t1) -> children.map(p => GraphNode(p, t2))
@@ -137,46 +247,5 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
     subgraphs.foldLeft(Map.empty[GraphNode, Seq[GraphNode]]) { case (acc, m) =>
       acc ++ m
     }
-  }
-
-  override def run(inputFile: List[String]): String = {
-    val map = parse(inputFile)
-    val winds = map
-      .values()
-      .map { case (c, point) =>
-        c match {
-          case '#' => None
-          case '.' => None
-          case '>' => Some(point -> Point(0, 1))
-          case 'v' => Some(point -> Point(1, 0))
-          case '<' => Some(point -> Point(0, -1))
-          case '^' => Some(point -> Point(-1, 0))
-        }
-      }
-      .flatten
-
-    val destination = Point(map.numLines() - 1, map.numCols() - 2)
-    val start       = Point(0, 1)
-
-    val graph: Map[GraphNode, Seq[GraphNode]] = buildGraph(map)
-
-    val hasEnding = graph.filter(_._2.exists(_.p == destination))
-
-    println(map.values().count { case (c, p) => c == '.' })
-
-    val initialExplorationQueue = Vector(ExploreCandidate(GraphNode(start, 0), GraphNode(start, 0)))
-    val result                  = bfs(graph, initialExplorationQueue, Set.empty, destination, Map.empty)
-
-    val endGraphNode = result.keySet.find { n => n.p == destination }.get
-
-    def buildPath(history: Map[GraphNode, HistoryItem], start: GraphNode, end: GraphNode): Vector[GraphNode] =
-      if (start == end) {
-        Vector(start)
-      } else {
-        buildPath(history, start, history(end).parent).appended(end)
-      }
-
-    val path = buildPath(result, GraphNode(start, 0), endGraphNode)
-    path.size.toString
   }
 }
