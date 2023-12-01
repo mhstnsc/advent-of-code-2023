@@ -36,4 +36,9 @@ object Terminal {
     val i = new Random(seed).nextInt(256)
     s"\u001B[38;5;${i}m"
   }
+
+  def getRandom256Color(): String = {
+    val i = Random.nextInt(256)
+    s"\u001B[38;5;${i}m"
+  }
 }

@@ -116,16 +116,6 @@ object Day22_Problem2 extends MainBaseBig(22) {
     }
   }
 
-//  def render3d(cube: Map[Point3D, PlanePoints]): Unit = {
-//    Slack3D("Rotating Box") foreach {
-//      state =>
-//        cube.values.map(_.contents.keys).flatten
-//          .map {
-//            p => Sphere(radius = 1, colour = Colour.Purple, center = Vector3(p.c, p.l, p.d))
-//          }
-//    }
-//  }
-
   private def foldAroundFace(
       faces: Map[Point3D, PlanePoints],
       face: Point3D,
@@ -201,129 +191,170 @@ object Day22_Problem2 extends MainBaseBig(22) {
   override def run(inputFile: List[String]): String = {
     val (map, cmds) = parse(inputFile)
 
+    val asciiRenderer = new AsciiRenderer(120, 80)
+
     val (foldedCube, topLeftFace) = foldCube(map)
     val allFoldedCubePoints       = foldedCube.values.map(_.contents).flatten.toMap
 
 //    verifyCube(foldedCube)
-//    render3d(foldedCube)
-
-    case class State(
-        map: Matrix[Char],
-        increment: Point3D,
-        pos: Point3D
-    )
-
-    val initialState = State(
-      map,
-      increment = Point3D(0, 1, 0),
-      pos = topLeftFace
-    )
 
     def findFace(pos: Point3D): (Point3D, PlanePoints) =
       foldedCube.find { case (_, PlanePoints(_, contents, _)) =>
         contents.contains(pos)
       }.get
 
-    val finalState = cmds.foldLeft(initialState) { case (acc, c) =>
-      @tailrec
-      def move(amount: Int, currentPos: Point3D, increment: Point3D): (Point3D, Point3D) = {
-        println(s"pos:${currentPos}, increment: ${increment}, face: ${findFace(currentPos)._1}")
-        if (amount == 0) (currentPos, increment)
-        else {
-          val newPos = currentPos.translate(increment)
-          val (wrappedNewPos, newIncrement) = if (!allFoldedCubePoints.contains(newPos)) {
-            // we need to wrap it
-            val neighbours3d = neighbours3dIncrements
-              .map(incr => (incr, newPos.translate(incr)))
-              .filter(p => allFoldedCubePoints.contains(p._2))
-              .filter(p => p._2 != currentPos)
+    def unfoldVector(pos: Point3D, vector: Point3D): Point = {
+      val (_, face) = findFace(pos)
+      val unfoldedIncrement = face.foldRotations.foldLeft(vector) { case (acc, t) =>
+        acc.rotateAroundPoint(Point3D.zero, t.l * -1, t.c * -1, t.d * -1)
+      }
+      require(unfoldedIncrement.d == 0, unfoldedIncrement)
+      Point(unfoldedIncrement.l, unfoldedIncrement.c)
+    }
 
-            require(neighbours3d.size == 1, s"${acc.pos} -> ${neighbours3d}")
-            neighbours3d.head.swap
-          } else (newPos, increment)
+    case class State private (
+        map: Matrix[Char],
+        increment: Point3D,
+        pos: Point3D
+    ) {
+      def updateMapWithDebug(): State = {
+        val unfoldedDirection = unfoldVector(pos, increment)
 
-          require(allFoldedCubePoints.contains(wrappedNewPos))
-
-          if (map(allFoldedCubePoints(wrappedNewPos)) == '#') {
-            (currentPos, increment)
-          } else {
-            move(amount - 1, wrappedNewPos, newIncrement)
-          }
-        }
+        val pos2D = allFoldedCubePoints(pos)
+        this.copy(map = map.updated(pos2D, incrementToChar(unfoldedDirection)))
       }
 
-      def incrementToChar(increment: Point): Char =
+      private def incrementToChar(increment: Point): Char =
         increment match {
-          case Point(0,0) => 'X'
-          case Point(1, 0)  => 'V'
+          case Point(0, 0)  => 'X'
+          case Point(1, 0)  => 'v'
           case Point(-1, 0) => '^'
           case Point(0, 1)  => '>'
           case Point(0, -1) => '<'
         }
 
-      def updateMapWithDebug(oldPosition: Point3D, newPosition: Point3D): Matrix[Char] = {
+      @tailrec
+      final def move(amount: Int): State = {
+        debugln(s"pos:${pos}, increment: ${increment}, face: ${findFace(pos)._1}")
+        if (amount == 0) this
+        else {
+          val newPos = pos.translate(increment)
+          val newState = if (!allFoldedCubePoints.contains(newPos)) {
+            // we need to wrap it
+            val neighbours3d = neighbours3dIncrements
+              .map(incr => (incr, newPos.translate(incr)))
+              .filter(p => allFoldedCubePoints.contains(p._2))
+              .filter(p => p._2 != pos)
 
-        val newPosition2D = allFoldedCubePoints(newPosition)
-        val oldPosition2D = allFoldedCubePoints(oldPosition)
-        val increment2D   = Point(newPosition2D.l - oldPosition2D.l, newPosition2D.c - oldPosition2D.c)
-        if (math.abs(increment2D.l) + math.abs(increment2D.c) > 1) {
-          // we have a jump, so render the old as an ID and the new with the same ID
-          acc.map
-            .updated(oldPosition2D.l, oldPosition2D.c, 'O')
-            .updated(newPosition2D.l, newPosition2D.c, 'O')
-        } else {
-          acc.map.updated(oldPosition2D.l, oldPosition2D.c, incrementToChar(increment2D))
+            require(neighbours3d.size == 1, s"${pos} -> ${neighbours3d}")
+            this
+              .copy(
+                pos = neighbours3d.head._2,
+                increment = neighbours3d.head._1
+              )
+              .updateMapWithDebug()
+          } else
+            this
+              .copy(pos = newPos)
+              .updateMapWithDebug()
+
+          //          require(allFoldedCubePoints.contains(wrappedNewPos))
+
+          if (map(allFoldedCubePoints(newState.pos)) == '#') {
+            this
+          } else {
+            newState.move(amount - 1)
+          }
         }
       }
 
       // rotating to the right is 27 degrees around the plane vector in trignometical way
-      def incrementToRight(increment: Point3D): Point3D = {
+      def incrementToRight(): State = {
         // determine the face vector
-        val (_, PlanePoints(planeVector, _, _)) = findFace(acc.pos)
+        val (_, PlanePoints(planeVector, _, _)) = findFace(pos)
 
-        require(Math.abs(planeVector.l) + math.abs(increment.l) <= 1)
-        require(math.abs(planeVector.c) +  math.abs(increment.c) <= 1)
+        require(math.abs(planeVector.l) + math.abs(increment.l) <= 1)
+        require(math.abs(planeVector.c) + math.abs(increment.c) <= 1)
         require(math.abs(planeVector.d) + math.abs(increment.d) <= 1)
 
-        increment.rotateAroundPoint(Point3D.zero, planeVector.l * 3, planeVector.c * 3, planeVector.d * 3)
+        this
+          .copy(increment =
+            increment.rotateAroundPoint(Point3D.zero, planeVector.l * 3, planeVector.c * 3, planeVector.d * 3)
+          )
+          .updateMapWithDebug()
       }
 
       // rotating to the left is 90 degres around the plane vector in trigonometrical way
-      def incrementToLeft(increment: Point3D): Point3D = {
+      def incrementToLeft(): State = {
         // determine the face vector
-        val (_, PlanePoints(planeVector, _, _)) = findFace(acc.pos)
+        val (_, PlanePoints(planeVector, _, _)) = findFace(pos)
 
-        require(Math.abs(planeVector.l) + math.abs(increment.l) <= 1)
-        require(math.abs(planeVector.c) +  math.abs(increment.c) <= 1)
+        require(math.abs(planeVector.l) + math.abs(increment.l) <= 1)
+        require(math.abs(planeVector.c) + math.abs(increment.c) <= 1)
         require(math.abs(planeVector.d) + math.abs(increment.d) <= 1)
 
-        increment.rotateAroundPoint(Point3D.zero, planeVector.l, planeVector.c, planeVector.d)
+        this
+          .copy(increment = increment.rotateAroundPoint(Point3D.zero, planeVector.l, planeVector.c, planeVector.d))
+          .updateMapWithDebug()
       }
+    }
 
-//      println(acc.map.mkString(""))
+    val initialState = State(
+      map,
+      increment = Point3D(0, 1, 0),
+      pos = topLeftFace
+    ).updateMapWithDebug()
+
+    val finalState = cmds.foldLeft(initialState) { case (acc, c) =>
+      Thread.sleep(30)
+
+      asciiRenderer.drawFrame(
+        acc.map.mkString(
+          "",
+          renderer = (c: Char, _: Point) =>
+            c match {
+              case '<' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+              case '>' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+              case '^' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+              case 'v' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+              case '.' => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+              case '#' => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+              case _   => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+
+            }
+        ),
+        allFoldedCubePoints(acc.pos)
+      )
+//      println(Terminal.moveCursorToPosition(1, 1))
+//      println(
+//        acc.map.mkString(
+//          "",
+//          renderer = (c: Char, p: Point) =>
+//            c match {
+//              case '<' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+//              case '>' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+//              case '^' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+//              case 'v' => s"${Terminal.ANSI_RED}$c${Terminal.ANSI_RESET}"
+//              case '.' => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+//              case '#' => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+//              case _   => s"${Terminal.ANSI_BLUE}$c${Terminal.ANSI_RESET}"
+//
+//            }
+//        )
+//      )
 
       c match {
         case Move(amount) =>
-          val (newPosition, newIncrement) = move(amount, acc.pos, acc.increment)
-
-          State(
-            pos = newPosition,
-            increment = newIncrement,
-            map = updateMapWithDebug(newPosition, acc.pos)
-          )
-        case RotateRight => acc.copy(increment = incrementToRight(acc.increment))
-        case RotateLeft  => acc.copy(increment = incrementToLeft(acc.increment))
+          acc.move(amount)
+        case RotateRight => acc.incrementToRight()
+        case RotateLeft  => acc.incrementToLeft()
       }
     }
-    println(finalState.pos + "" + finalState.increment)
+    debugln(finalState.pos + "" + finalState.increment)
 
     // to determine final orientation we have to revert the folding for the current increment
-    val (faceId, face) = findFace(finalState.pos)
-    val unfoldedIncrement = face.foldRotations.foldLeft(finalState.increment) { case (acc, t) =>
-      acc.rotateAroundPoint(Point3D.zero, t.l * -1, t.c * -1, t.d * -1)
-    }
-    require(unfoldedIncrement.d == 0, unfoldedIncrement)
-    val direction = incrementToDirection(Point(unfoldedIncrement.l, unfoldedIncrement.c))
+    val unfoldedIncrement = unfoldVector(finalState.pos, finalState.increment)
+    val direction         = incrementToDirection(unfoldedIncrement)
 
     val finalPos2D = allFoldedCubePoints(finalState.pos)
 

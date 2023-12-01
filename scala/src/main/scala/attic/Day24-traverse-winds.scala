@@ -28,7 +28,7 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
 
     def moveWinds(): WindState = {
       val newWinds = winds.map { case (windPos, incr) =>
-        val newWindPos = windPos.inc(incr)
+        val newWindPos = windPos.translate(incr)
         wrap(newWindPos) -> incr
       }
 
@@ -115,7 +115,7 @@ object Day24_v2_Problem1 extends MainBaseBig(24) {
       Point(0, -1),
       Point(0, 0)
     )
-    increments.map(i => pos.inc(i)).filter(p => newMap.isInside(p)).filter(p => newMap(p) == '.')
+    increments.map(i => pos.translate(i)).filter(p => newMap.isInside(p)).filter(p => newMap(p) == '.')
   }
 
   case class GraphNode(

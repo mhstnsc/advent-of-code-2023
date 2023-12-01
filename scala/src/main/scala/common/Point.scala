@@ -7,6 +7,6 @@ case class Point(l: Int, c: Int) {
   def manhattan(p: Point): Int =
     math.abs(p.l - l) + math.abs(p.c - c)
 
-  def inc(p: Point) =
+  def translate(p: Point) =
     Point(l + p.l, c + p.c)
 }

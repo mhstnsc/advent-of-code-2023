@@ -5,7 +5,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable
 
-object Day19_Problem1 extends MainBaseBig(19) {
+object Day19_Problem1 extends MainBaseSmall(19) {
 
   type Ore      = Int
   type Clay     = Int
@@ -128,7 +128,7 @@ object Day19_Problem1 extends MainBaseBig(19) {
 
     val maxTime = 24
 
-    val solutions = blueprints.par.map { b =>
+    val solutions = blueprints.drop(1).map { b =>
       println(s"solving ${b}")
       val initialInventory = Inventory(
         ore = Resource(0, 1),
@@ -140,13 +140,29 @@ object Day19_Problem1 extends MainBaseBig(19) {
         firstGeoTime = 0
       )
 
-      implicit val greed: Ordering[Inventory] = (a: Inventory, b: Inventory) => a.greedyScore() - b.greedyScore()
-      val priorityQueue                       = new mutable.PriorityQueue[Inventory]()
-      val initialMax                          = initialInventory.copy(elapsed = maxTime)
+//      implicit val greed: Ordering[Inventory] = (a: Inventory, b: Inventory) => a.greedyScore() - b.greedyScore()
+      implicit val greed: Ordering[Inventory] = (a: Inventory, b: Inventory) => {
+        val blueprint = a.blueprint
+        if (a.geode.robots != b.geode.robots) a.geode.robots - b.geode.robots
+        else if (
+          math.min(blueprint.geo_ObsCost, a.obsidian.robots) != math.min(blueprint.geo_ObsCost, b.obsidian.robots)
+        ) math.min(blueprint.geo_ObsCost, a.obsidian.robots) - math.min(blueprint.geo_ObsCost, b.obsidian.robots)
+        else if (math.min(blueprint.obs_ClayCost, a.clay.robots) != math.min(blueprint.obs_ClayCost, b.clay.robots))
+          math.min(blueprint.obs_ClayCost, a.clay.robots) - math.min(blueprint.obs_ClayCost, b.clay.robots)
+        else if (a.geode.deposit != b.geode.deposit) a.geode.deposit - a.geode.deposit
+        else if (
+          math.min(blueprint.geo_ObsCost, a.obsidian.deposit) != math.min(blueprint.geo_ObsCost, b.obsidian.deposit)
+        ) math.min(blueprint.geo_ObsCost, a.obsidian.deposit) - math.min(blueprint.geo_ObsCost, b.obsidian.deposit)
+        else if (math.min(blueprint.obs_ClayCost, a.clay.deposit) != math.min(blueprint.obs_ClayCost, b.clay.deposit))
+          math.min(blueprint.obs_ClayCost, a.clay.deposit) - math.min(blueprint.obs_ClayCost, b.clay.deposit)
+        else a.ore.deposit - b.ore.deposit
+      }
+      val priorityQueue = new mutable.PriorityQueue[Inventory]()
+      val initialMax    = initialInventory.copy(elapsed = maxTime)
 
       val allSolutions = bfsInvoker(priorityQueue, maxTime, 1, List(initialInventory))
 
-      println(s"solving ${b} ... done")
+      println(s"solving ${b} ... done with ${allSolutions.map(i => i.geode.deposit).max}")
       (b, allSolutions.map(i => i.geode.deposit).max)
     }
 
@@ -174,11 +190,15 @@ object Day19_Problem1 extends MainBaseBig(19) {
     if (priorityQueue.isEmpty) {
       solutions
     } else {
-      val newCandidates = bfs(priorityQueue, maxTime, currentMaxGeode, Nil)
+      val newCandidates = bfs(priorityQueue, maxTime, currentMaxGeode, Nil, 0)
+
+      val minTime               = newCandidates.minBy(_.firstGeoTime).firstGeoTime
+      val newCandidatesFilteted = newCandidates.filter(_.firstGeoTime == minTime)
 
       val allSolutions = (newCandidates ++ finished).distinct
 
-      require(priorityQueue.isEmpty)
+      priorityQueue.clear()
+//      require(priorityQueue.isEmpty)
       bfsInvoker(priorityQueue, maxTime, currentMaxGeode + 1, allSolutions)
     }
 
@@ -214,7 +234,8 @@ object Day19_Problem1 extends MainBaseBig(19) {
       queue: mutable.PriorityQueue[Inventory],
       maxTime: Int,
       maxGeode: Int,
-      solutions: List[Inventory]
+      solutions: List[Inventory],
+      exploredCount: Int
   ): List[Inventory] =
     if (queue.isEmpty) {
       solutions
@@ -232,7 +253,7 @@ object Day19_Problem1 extends MainBaseBig(19) {
         (solutions, maxTime)
       }
 
-      bfs(queue, newMaxTime, maxGeode, newSolutions)
+      bfs(queue, newMaxTime, maxGeode, newSolutions, exploredCount + 1)
     }
 
   def parseBlueprint(s: String): Blueprint = {

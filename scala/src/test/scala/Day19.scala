@@ -42,6 +42,7 @@ class Day19 extends AnyFunSuite with Matchers {
       obsidian = Resource(100, 100),
       geode = Resource(1000, 1000),
       blueprint = Blueprint(
+        id=1,
         ore_OreCost = 2,
         clay_OreCost = 2,
         obs_OreCost = 2,
