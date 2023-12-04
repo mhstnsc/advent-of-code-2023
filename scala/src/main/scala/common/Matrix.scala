@@ -3,6 +3,10 @@ package common
 /**
  * Swiss army knife Matrix
  *
+ * creation:
+ * from data - Matrix()
+ * empty - Matrix.fill
+ *
  * Features:
  * map() - items
  * mapLines
