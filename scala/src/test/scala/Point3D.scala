@@ -1,5 +1,4 @@
-package common
-
+import common.Point3D
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 class Point3D extends AnyFunSuite with Matchers {

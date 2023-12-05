@@ -1,5 +1,4 @@
-package common
-
+import common.Matrix
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 class MatrixTest extends AnyFunSuite with Matchers {

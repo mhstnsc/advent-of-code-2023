@@ -1,4 +1,6 @@
-import common.{MainBase, MainBaseSmall}
+package attic
+
+import common.MainBase
 
 private abstract class Day4Base extends MainBase(4) {}
 
